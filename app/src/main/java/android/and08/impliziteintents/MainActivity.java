@@ -1,28 +1,31 @@
 package android.and08.impliziteintents;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.StrictMode;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.Toast;
 import android.os.Environment;
 
 public class MainActivity extends AppCompatActivity {
 
     final int REQUEST_CALL_PHONE = 0;
-    final int REQUEST_IMAGE_CAPTURE = 1;
+    final int REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE = 1;
+    String[] PERMISSIONS = {
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            android.Manifest.permission.CAMERA
+    };
     private Intent callIntent;
     private Intent takePictureIntent;
+    static final String imageFilePath = Environment.getExternalStorageDirectory().getPath() + "/picture.png";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
         //check if there is any app installed that enables phone calls
         if (callIntent.resolveActivity(getPackageManager()) != null) {
             //Check if the permission to make phone calls was already granted
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            if (hasPermissions(this, new String [] {Manifest.permission.CALL_PHONE})) {
                 //Permissions were already granted -> start implicit intent (phone call)
                 startActivity(callIntent);
             }else{
@@ -65,10 +68,12 @@ public class MainActivity extends AppCompatActivity {
     //as valid on the ok button of the camera app.
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+        if (requestCode == REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE && resultCode == RESULT_OK) {
+            /*
             Bundle extras = data.getExtras();
             Bitmap image = (Bitmap) extras.get("data");
             ((ImageView) findViewById(R.id.imageview_thumbnail)).setImageBitmap(image);
+            */
         }
     }
 
@@ -86,10 +91,10 @@ public class MainActivity extends AppCompatActivity {
                 //Permission was granted, we can now do the phone call
                 startActivity(callIntent);
             }
-        } else if (requestCode == REQUEST_IMAGE_CAPTURE){
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE){
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 //Permission was granted, we can now make the photo
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE);
             }
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -97,8 +102,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onButtonCameraClick(View view) {
+        //These next two lines solve this issue when trying to get access to the external storage:
+        //www.stackoverflow.com/questions/48117511
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
+        //Show the path on the log, where the picture will be saved
+        Log.e(getClass().getSimpleName(), "imageFilePath = " + imageFilePath);
+        //First check if the External Storage is available. (When, for example, the Smartphone is
+        //connected to a computer with the USB Cable, the External Storage is not available).
+        if(!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())){
+            Toast.makeText(this, "External storage nicht verfügbar", Toast.LENGTH_LONG).show();
+            return;
+        }
         //create intent
         takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        //putting as Extra the path where we want to save the picture, otherwise a thumbnail of the
+        //photo will be created (AND08D S.41)
+        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.parse("file://" + imageFilePath));
         if (takePictureIntent.resolveActivity(getPackageManager()) != null){
             //In case there is an app for taking photos, start it as a implicit event
             //Unlike the phone call implicit event, here we need to come back to our activity
@@ -110,16 +130,16 @@ public class MainActivity extends AppCompatActivity {
             //the activity comes back after taking the photo
 
             //Check if the permission to use the camera was already granted
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
+            if (hasPermissions(this, PERMISSIONS)){
                 //Permissions were already granted -> start implicit intent (take photo)
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE);
             }else{
                 //Permissions were NOT already granted -> ask for permissions on runtime
                 //But first give an explanation why, on a toast.
                 //if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
                 //    Toast.makeText(this,"Camera permission is needed order for the app to take photos", Toast.LENGTH_LONG).show();
                 //}
-                requestPermissions(new String[]{ Manifest.permission.CAMERA}, REQUEST_IMAGE_CAPTURE);
+                requestPermissions(PERMISSIONS, REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE);
             }
 
         }else{
@@ -130,11 +150,24 @@ public class MainActivity extends AppCompatActivity {
 
     public void onButtonEmailClick(View view) {
         Intent emailIntent = new Intent(Intent.ACTION_SEND);
-        emailIntent.setType("text/plain");
+        //MIME Type was changed from text/plain to image/jpg in order to be able to send an attached picture to the email
+        //emailIntent.setType("text/plain");
+        emailIntent.setType("image/jpg");
         emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[] {"javier@javiergonzalez.de"});
-        emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Este es mi asunto de prueba");
-        emailIntent.putExtra(Intent.EXTRA_TEXT, "Este es mi contenido del email de prueba");
+        emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Este es mi asunto de prueba con archivo adjunto");
+        emailIntent.putExtra(Intent.EXTRA_TEXT, "Este es mi contenido del email de prueba con archivo adjunto");
+        emailIntent.putExtra(Intent.EXTRA_STREAM, Uri.parse("file://" + imageFilePath));
         startActivity(Intent.createChooser(emailIntent, "Enviar email"));
     }
 
+    public static boolean hasPermissions(Context context, String permissions[]) {
+        if (context != null && permissions != null) {
+            for (String permission : permissions) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
