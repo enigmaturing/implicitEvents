@@ -34,13 +34,15 @@
                 android:onClick="onButtonEmailClick"
                 android:src="@android:drawable/ic_menu_send"/>
         </LinearLayout>
-
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/textView_broadcast_test"
+            android:hint="Broadcast-Test. Click and change input method to generate a broadcast"/>
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/imageview_thumbnail"/>
     </LinearLayout>
-
-
 
 </android.support.constraint.ConstraintLayout>

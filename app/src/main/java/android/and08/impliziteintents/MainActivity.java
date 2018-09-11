@@ -4,6 +4,10 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.StrictMode;
 import android.provider.MediaStore;
@@ -12,8 +16,12 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 import android.os.Environment;
+
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,12 +33,35 @@ public class MainActivity extends AppCompatActivity {
     };
     private Intent callIntent;
     private Intent takePictureIntent;
-    static final String imageFilePath = Environment.getExternalStorageDirectory().getPath() + "/picture.png";
+    static final String imageFilePath = Environment.getExternalStorageDirectory().getPath() + "/ImpliziteIntents/picture.png";
+    Bitmap imageBitmap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState){
+        super.onSaveInstanceState(outState);
+        //AND08D S.46 Auf.2.2.
+        //Cast the image into a Bitmap as it is said in Auf.2.2. S.46 AND08D, in order to then save
+        //it into an InstsanceState. In this way, we are able to recover the image in the method
+        //onRestoureInstanceState when the activity is created again after having rotated the phone
+        Drawable imageDrawable =  ((ImageView) findViewById(R.id.imageview_thumbnail)).getDrawable();
+        if (imageDrawable != null){
+            BitmapDrawable imageBitmapDrawable = (BitmapDrawable) imageDrawable;
+            Bitmap imageBitmap = imageBitmapDrawable.getBitmap();
+            outState.putParcelable("image", imageBitmap);
+        }
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState){
+        super.onRestoreInstanceState(savedInstanceState);
+        Bitmap imageBitmap = savedInstanceState.getParcelable("image");
+        if (imageBitmap != null) ((ImageView) findViewById(R.id.imageview_thumbnail)).setImageBitmap(imageBitmap);
     }
 
     public void onButtonCallClick(View view) {
@@ -70,10 +101,23 @@ public class MainActivity extends AppCompatActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE && resultCode == RESULT_OK) {
             /*
+            //If we didnt pass an uri using the method putExtra in the method onButtonCameraClick(),
+            //with the location where we want to save the picture, than a thumbnail of the foto
+            //is returned in the bundle extras, and we can use it to se
             Bundle extras = data.getExtras();
             Bitmap image = (Bitmap) extras.get("data");
             ((ImageView) findViewById(R.id.imageview_thumbnail)).setImageBitmap(image);
             */
+
+            //If we passed an uri using the method putExtra in the method onButtonCameraClick(),
+            //with the location where we want to save the picture, then no thumbnail is returned
+            //in a bundle as extra. So we set the image to the ImageView like this:
+            imageBitmap = BitmapFactory.decodeFile(imageFilePath);
+            ((ImageView) findViewById(R.id.imageview_thumbnail)).setImageBitmap(imageBitmap);
+
+            //Save the bitmap into an InstanceState in order for the image in the ImageView not
+            //to be deleted when the mobile phone is rotated:
+
         }
     }
 
@@ -114,6 +158,9 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "External storage nicht verfügbar", Toast.LENGTH_LONG).show();
             return;
         }
+        //AND08D S.46 Aufg.2.3.->  Create subfolder with the name of the app in the EXTERNAL STORAGE
+        File publicAppDirectory = new File(Environment.getExternalStorageDirectory().getPath(), "ImpliziteIntents");
+        publicAppDirectory.mkdirs();
         //create intent
         takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         //putting as Extra the path where we want to save the picture, otherwise a thumbnail of the
