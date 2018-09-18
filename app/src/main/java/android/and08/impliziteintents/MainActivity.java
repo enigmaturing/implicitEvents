@@ -10,6 +10,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.StrictMode;
+import android.provider.AlarmClock;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -22,6 +23,7 @@ import android.widget.Toast;
 import android.os.Environment;
 
 import java.io.File;
+import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -135,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
                 //Permission was granted, we can now do the phone call
                 startActivity(callIntent);
             }
-        } else if (requestCode == REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE){
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 //Permission was granted, we can now make the photo
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE_AND_WRITE_EXTERNAL_STORAGE);
@@ -216,5 +218,36 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return true;
+    }
+
+    public void onButtonCalendar(View view) {
+        //get the actual time
+        Calendar time = Calendar.getInstance();
+        //add 5 minutes to the actual time
+        time.add(Calendar.MINUTE, 5);
+        //save hour and minute in separate variables
+        int hour = time.get(Calendar.HOUR_OF_DAY);
+        int minute = time.get(Calendar.MINUTE);
+        //we now proceed to create the proper intent in order to set the alarm
+        Intent alarmIntent = new Intent(AlarmClock.ACTION_SET_ALARM)
+                .putExtra(AlarmClock.EXTRA_MESSAGE, "Alarm von 'Implizitintents'")
+                .putExtra(AlarmClock.EXTRA_HOUR, hour)
+                .putExtra(AlarmClock.EXTRA_MINUTES, minute)
+                .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+        //check if there is any app installed that enables alarms
+        if (alarmIntent.resolveActivity(getPackageManager()) != null) {
+            //set the alarm at the desired time by calling the method startActivity with the
+            //intent that was created before
+            startActivity(alarmIntent);
+            //create a new intent to just show the created alarm
+            alarmIntent = new Intent(AlarmClock.ACTION_SET_ALARM);
+            //start the activity with the created intent
+            startActivity(alarmIntent);
+            //show a toast with information
+            Toast.makeText(this, "Der Wecker klingelt in 5 Minuten.", Toast.LENGTH_LONG).show();
+        }else{
+            //there is no app installed that enables setting an alarm
+            Toast.makeText(this, "Keine geeignete Anwendung installiert", Toast.LENGTH_LONG).show();
+        }
     }
 }

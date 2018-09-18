@@ -33,6 +33,11 @@
                 android:layout_height="wrap_content"
                 android:onClick="onButtonEmailClick"
                 android:src="@android:drawable/ic_menu_send"/>
+            <ImageButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="onButtonCalendar"
+                android:src="@android:drawable/ic_menu_my_calendar"/>
         </LinearLayout>
         <EditText
             android:layout_width="wrap_content"
